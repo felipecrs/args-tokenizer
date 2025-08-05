@@ -1,4 +1,5 @@
 const spaceRegex = /\s/;
+const escapeableRegex = /["'\\|\s]/;
 
 type Options = {
   loose?: boolean;
@@ -29,7 +30,12 @@ export const tokenizeArgs = (
     }
 
     if (char === "\\") {
-      escaped = true;
+      const nextChar = argsString[index + 1];
+      if (nextChar && escapeableRegex.test(nextChar)) {
+        escaped = true;
+        continue;
+      }
+      currentToken += char;
       continue;
     }
 

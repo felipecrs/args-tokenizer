@@ -116,3 +116,52 @@ test("empty command", () => {
   expect(tokenizeArgs(``)).toEqual([]);
   expect(tokenizeArgs(`  `)).toEqual([]);
 });
+
+test("windows path separator", () => {
+  expect(tokenizeArgs(`.\\shellcheck.exe --version`)).toEqual([
+    ".\\shellcheck.exe",
+    "--version",
+  ]);
+  // Unquoted paths with spaces will be split (expected shell behavior)
+  expect(tokenizeArgs(`C:\\Program Files\\app.exe`)).toEqual([
+    "C:\\Program",
+    "Files\\app.exe",
+  ]);
+  // Quoted paths with spaces should be kept together
+  expect(tokenizeArgs(`"C:\\Program Files\\app.exe"`)).toEqual([
+    "C:\\Program Files\\app.exe",
+  ]);
+});
+
+test("mixed backslash usage", () => {
+  // Backslash as path separator
+  expect(tokenizeArgs(`C:\\path\\to\\file.exe`)).toEqual([
+    "C:\\path\\to\\file.exe",
+  ]);
+  // Backslash as escape character for quotes
+  expect(
+    tokenizeArgs(`command "C:\\path with \\"quotes\\"\\file.exe"`)
+  ).toEqual(["command", 'C:\\path with "quotes"\\file.exe']);
+  // Backslash as escape character for spaces
+  expect(tokenizeArgs(`C:\\path\\ with\\ spaces\\file.exe`)).toEqual([
+    "C:\\path with spaces\\file.exe",
+  ]);
+  // Double backslash (escaping backslash)
+  expect(tokenizeArgs(`echo \\\\server\\\\share`)).toEqual([
+    "echo",
+    "\\server\\share",
+  ]);
+});
+
+test("backslash at end of string", () => {
+  // Backslash at end should be treated as literal (Windows path)
+  expect(tokenizeArgs(`C:\\path\\`)).toEqual(["C:\\path\\"]);
+  // Multiple arguments with trailing backslash
+  expect(tokenizeArgs(`command C:\\path\\`)).toEqual(["command", "C:\\path\\"]);
+  // Backslash at end inside quotes - this escapes the quote per shell rules
+  expect(() => tokenizeArgs(`"C:\\path\\"`)).toThrow(
+    "Unexpected end of string. Closing quote is missing."
+  );
+  // To include a literal backslash before a quote, double escape it
+  expect(tokenizeArgs(`"C:\\path\\\\"`)).toEqual(["C:\\path\\"]);
+});
